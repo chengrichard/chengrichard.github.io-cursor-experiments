@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Richard's Cursor Vertical Video Player</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Richard's Cursor Vertical Video Player</h1>
+        </header>
+        <main>
+
+            <div class="carousel-container">
+                <button class="carousel-nav prev" id="carouselPrev">‹</button>
+                <div class="video-carousel" id="videoCarousel">
+                    <!-- Video carousel will be populated by JavaScript -->
+                </div>
+                <button class="carousel-nav next" id="carouselNext">›</button>
+            </div>
+
+
+            
+            
+        </main>
+
+        <section id="richard-notes">
+            <h2>Richard's Notes</h2>
+                <p>I wanted to explore vibe coding a vertical video experience. Beyond just trying Cursor, I also wanted to prototype how display ad formats can be rendered for the carousel, full screen vertical and full screen margins.</p>
+                <p>As part of this, I asked Cursor to:</p>
+                <ul>
+                    <li>Parse a real JWP Playlist URL to pull the videos</li>
+                    <li>Integrate with Google IMA for video ads</li>
+                    <li>Use a Google GPT Display Ad Tag for the full screen margin display ad. There wasn't an example vertical display ad so I used a static image for those.</li>
+                </ul>
+                <p>Overall thoughts</p>
+                <ul>
+                    <li>Cursor was able to generate the code for the most part, but I had to make some adjustments to get it to work.</li>
+                    <li>I'm not fluent in coding so I didn't necessarily know how to structure prompts in the right way. I think Engineers would do a better job at this and enforcing the right standards.</li>
+                    <li>I can see this being a good way to prototype quickly and can see it replacing activities like Crazy 8s as part of the product discovery process.</li>
+                    <li>I also had it write a PRD for the product afterwards and it was reasonable for a starting point to then refine.</li>
+                    <li>It sometimes struggled with fixing bugs or creating a behavior. When it got stuck, I found that asking it how it understood a feature/UX interaction helped me understand what it was trying to do. Then I could use another prompt to try to explain better what I'd like it to do. Eg.) I asked Cursor to tell me what should show up in every index of the carousel and how ads interacted.</li>
+                </ul>
+
+        </section>
+
+        <section id="prd-section">
+            <h2>Product Requirements Document: The "Monetized Vertical Video Player"</h2>
+            
+            <h3>1. Overview & Vision</h3>
+            <p><strong>Product Vision:</strong> To create a modern, engaging, and highly monetizable vertical video experience for our users on the web. As mobile-first consumption patterns dominate, our goal is to provide a seamless, intuitive player that maximizes both user engagement and revenue opportunities through a multi-faceted advertising strategy.</p>
+            <p><strong>Problem Statement:</strong> Standard video players are optimized for landscape (16:9) content, leading to a suboptimal experience for vertical (9:16) video. This results in letterboxing, wasted screen real estate, and lower engagement. Furthermore, our current ad strategy is not fully optimized for this format, leaving significant revenue on the table. This product addresses these gaps by providing a dedicated vertical player with integrated, format-appropriate ad placements.</p>
+
+            <h3>2. Target Audience & Personas</h3>
+            <ul>
+                <li><strong>Users:</strong> Primarily mobile web users who consume short-form video content. They expect a fast, intuitive, full-screen experience similar to popular social media apps.</li>
+                <li><strong>Internal Teams:</strong> Engineering, Design, Ad Operations, and Sales teams who will build, maintain, and sell this new ad inventory.</li>
+            </ul>
+
+            <h3>3. Features & Functional Requirements</h3>
+            
+            <h4>3.1. Core Player Experience</h4>
+            <ul>
+                <li><strong>Vertical Video Carousel:</strong> The player must display a horizontally scrollable carousel of vertical video thumbnails, dynamically loaded from a JWP Playlist MRSS feed.</li>
+                <li><strong>Autoplay with Countdown:</strong> The carousel features a gentle autoplay mechanism. When a video plays, a countdown timer is displayed, providing a clear visual cue of the remaining time.</li>
+                <li><strong>Full-Screen Modal:</strong> Clicking any video opens an immersive, full-screen modal player.</li>
+                <li><strong>Navigation:</strong> Users can navigate between videos in full-screen mode using keyboard arrow keys (Up/Down) or touch swipe gestures.</li>
+            </ul>
+
+            <h4>3.2. Monetization & Ad Placements</h4>
+            <p>The player integrates four distinct, non-intrusive ad formats to create a robust monetization ecosystem.</p>
+            <ul>
+                <li>
+                    <strong>Carousel Static Display Ad:</strong>
+                    <ul>
+                        <li><strong>Trigger:</strong> Appears inline within the video carousel, after the <strong>3rd</strong> and <strong>7th</strong> video items.</li>
+                        <li><strong>Implementation:</strong> A static 9:16 image ad styled to look like a video card.</li>
+                        <li><strong>User Experience:</strong> The ad is a seamless part of the carousel. Clicking the ad card opens the advertiser's landing page in a new tab without interrupting the player.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Pre-Roll Video Ad (IMA):</strong>
+                    <ul>
+                        <li><strong>Trigger:</strong> Plays automatically after the user watches their <strong>first</strong> video in a full-screen session.</li>
+                        <li><strong>Implementation:</strong> Leverages the Google IMA SDK to serve a VAST ad tag.</li>
+                        <li><strong>User Experience:</strong> A simulated "Skip Ad" button appears after a 2-second countdown, allowing the user to proceed to their content. This is a PoC feature to demonstrate skippability.</li>
+                        <li><strong>Fallback:</strong> If the IMA ad fails to load, a styled placeholder is shown to ensure the user experience is not interrupted.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Full-Screen Vertical Display Ad:</strong>
+                    <ul>
+                        <li><strong>Trigger:</strong> Appears as a full-screen takeover after the <strong>4th</strong> and <strong>8th</strong> videos watched in a session.</li>
+                        <li><strong>Implementation:</strong> A static image ad with a 2-second countdown timer.</li>
+                        <li><strong>User Experience:</strong> Clicking the ad opens the advertiser's landing page in a new tab. After the countdown, the player automatically proceeds to the next video.</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Left Margin Display Ad (GPT):</strong>
+                    <ul>
+                        <li><strong>Trigger:</strong> Appears as soon as the user enters the full-screen player on desktop devices. It remains visible throughout the session.</li>
+                        <li><strong>Implementation:</strong> A standard 300x250 IAB ad unit served via Google Publisher Tag (GPT).</li>
+                        <li><strong>User Experience:</strong> The ad is positioned in the left margin, outside the primary content area, providing monetization without disrupting video playback. It is removed when fullscreen is exited. On mobile devices (screen width <= 768px), this ad is hidden to preserve screen real estate.</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>4. Information for Internal Teams</h3>
+
+            <h4>4.1. For Engineers</h4>
+            <ul>
+                <li>The player is a self-contained vanilla JavaScript class (<code>VerticalVideoPlayer</code>) in <code>script.js</code>.</li>
+                <li>Dependencies: Google IMA SDK and Google Publisher Tag (GPT), both loaded dynamically.</li>
+                <li>DOM Manipulation: Key methods like <code>renderCarousel</code> have been optimized with <code>DocumentFragment</code> to minimize reflows. Ad containers are dynamically generated.</li>
+                <li>State Management: Player state (e.g., <code>currentIndex</code>, <code>isFullscreen</code>) is managed within the class instance.</li>
+                <li>Ad Logic: All ad-related functions are clearly named (e.g., <code>playIMAVideoAd</code>, <code>showLeftMarginAd</code>) and use modern async/await and Promise-based patterns for handling asynchronous ad library loading and execution. The <code>showLeftMarginAd</code> function includes a check to prevent rendering on mobile devices.</li>
+            </ul>
+            
+            <h4>4.2. For Designers</h4>
+            <ul>
+                <li>The UI is designed to be clean, modern, and intuitive, inspired by popular social media video apps.</li>
+                <li>Key Styles: All styles are in <code>styles.css</code>. Flexbox is used for layout. Animations are optimized with <code>will-change</code> to ensure smoothness.</li>
+                <li>Ad Placement: Ad formats are designed to be non-intrusive. The pre-roll is skippable, and the GPT ad sits in the margin, ensuring the core content remains the focus.</li>
+                <li>Consistency: Fallback and placeholder ads are styled to match the dimensions and feel of the real ads for a consistent UX.</li>
+            </ul>
+
+            <h4>4.3. For QA Teams</h4>
+            <ul>
+                <li><strong>Testing Scenarios:</strong>
+                    <ol>
+                        <li>Verify that the pre-roll IMA ad triggers only after the 1st fullscreen video.</li>
+                        <li>Confirm the "Skip Ad" button appears after 2 seconds and correctly terminates the video ad.</li>
+                        <li>Test the fallback behavior: if an IMA ad fails, the placeholder should appear seamlessly.</li>
+                        <li>Verify the full-screen display ad triggers after the 4th and 8th videos.</li>
+                        <li>Confirm the left-margin GPT ad appears immediately on entering fullscreen on desktop and disappears on exit.</li>
+                        <li>Verify that the left-margin GPT ad does NOT appear on mobile devices (e.g., by resizing the browser window to be less than 768px wide).</li>
+                        <li>Test navigation via carousel clicks, keyboard arrows (up/down in fullscreen), and touch swipes.</li>
+                        <li>Ensure all ad click-throughs open in a new tab.</li>
+                    </ol>
+                </li>
+                <li><strong>Browser Compatibility:</strong> Test on latest versions of Chrome, Firefox, and Safari (desktop and mobile).</li>
+                <li><strong>Console Logs:</strong> The application is heavily instrumented with console logs. All major events, ad triggers, and errors are logged for easy debugging.</li>
+            </ul>
+            
+            <h4>4.4. For Sales & Ad Operations</h4>
+            <ul>
+                <li><strong>New Inventory:</strong> This player introduces three new, high-value ad slots available for monetization.</li>
+                <li><strong>Ad Tags:</strong>
+                    <ul>
+                        <li>The pre-roll slot requires a VAST tag (currently using a Google sample).</li>
+                        <li>The left-margin slot requires a standard 300x250 display tag (currently using a Google sample).</li>
+                    </ul>
+                </li>
+                <li><strong>Value Proposition:</strong> This is a premium, engaging ad experience. The vertical format is ideal for brand storytelling, and the non-intrusive nature of the ads leads to higher user acceptance and viewability.</li>
+            </ul>
+        </section>
+    </div>
+
+    <!-- Fullscreen Video Modal -->
+    <div class="fullscreen-modal" id="fullscreenModal">
+        <!-- This new wrapper will handle the centering -->
+        <div class="fullscreen-content-wrapper">
+            <div class="fullscreen-container">
+                <div class="video-wrapper">
+                    <video id="fullscreenVideo" controls>
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <button class="control-btn prev-btn" id="prevBtn">↑</button>
+                <button class="control-btn next-btn" id="nextBtn">↓</button>
+            </div>
+        </div>
+        <button class="control-btn close-btn" id="closeBtn">✕</button>
+    </div>
+
+    <script src="script.js" defer></script>
+</body>
+</html> 
