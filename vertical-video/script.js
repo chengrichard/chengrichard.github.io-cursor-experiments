@@ -410,16 +410,24 @@ class VerticalVideoPlayer {
         this.nextBtn = document.getElementById('nextBtn');
         this.closeBtn = document.getElementById('closeBtn');
 
-        
-        // Create the container for the left margin ad and append it to the modal
-        this.leftMarginAdContainer = document.createElement('div');
-        this.leftMarginAdContainer.className = 'full-screen-left-margin-ad';
-        this.leftMarginAdContainer.id = 'banner-ad'; // This ID is targeted by the GPT tag
-        this.fullscreenModal.appendChild(this.leftMarginAdContainer);
+        // Ensure there is exactly one left-margin ad container
+        const existingAdContainer = this.fullscreenModal.querySelector('#banner-ad');
+        if (existingAdContainer) {
+            this.leftMarginAdContainer = existingAdContainer;
+        } else {
+            this.leftMarginAdContainer = document.createElement('div');
+            this.leftMarginAdContainer.className = 'full-screen-left-margin-ad';
+            this.leftMarginAdContainer.id = 'banner-ad';
+            this.fullscreenModal.appendChild(this.leftMarginAdContainer);
+        }
     }
 
     async initializeLeftMarginAd() {
         try {
+            if (this.leftMarginAdSlot) {
+                // Already initialized
+                return;
+            }
             await this.ensureGptScriptLoaded();
             console.log('GPT script ready, defining the left margin ad slot.');
 
@@ -492,7 +500,7 @@ class VerticalVideoPlayer {
 
         window.googletag.cmd.push(() => {
             // Listen for when the ad slot is finished rendering
-            googletag.pubads().addEventListener('slotRenderEnded', (event) => {
+            const onRenderEnded = (event) => {
                 // Check if the event is for our specific ad slot
                 if (event.slot === this.leftMarginAdSlot) {
                     if (!event.isEmpty) {
@@ -501,8 +509,11 @@ class VerticalVideoPlayer {
                     } else {
                         console.log('GPT ad slot was empty, container remains hidden.');
                     }
+                    // Remove listener after handling once to avoid leaks
+                    googletag.pubads().removeEventListener('slotRenderEnded', onRenderEnded);
                 }
-            });
+            };
+            googletag.pubads().addEventListener('slotRenderEnded', onRenderEnded);
 
             // Now, refresh the ad slot to trigger the request
             googletag.pubads().refresh([this.leftMarginAdSlot]);
@@ -831,6 +842,9 @@ class VerticalVideoPlayer {
     setupIntersectionObserver() {
         if (this.intersectionObserver) {
             this.intersectionObserver.disconnect();
+        }
+        if (!('IntersectionObserver' in window)) {
+            return; // Browser doesn't support it; rely on default 'metadata' preload
         }
         const options = { root: this.carousel, rootMargin: '200px', threshold: 0.01 };
         this.intersectionObserver = new IntersectionObserver((entries) => {
@@ -1542,7 +1556,10 @@ class VerticalVideoPlayer {
         }
         
         // Ensure video element is visible
-        this.fullscreenVideo.style.display = 'block';
+        if (this.fullscreenVideo) {
+            this.fullscreenVideo.style.display = 'block';
+            this.fullscreenVideo.setAttribute('playsinline', '');
+        }
         
         // Use the video-index to get the correct video from the playlist.
         const videoIndex = parseInt(currentItem.dataset.videoIndex);
@@ -1601,8 +1618,10 @@ class VerticalVideoPlayer {
         this.playVideo(this.fullscreenVideo);
         
         // Add ended event listener for auto-progression
-        this.fullscreenVideo.removeEventListener('ended', this.fullscreenVideoEndedHandler); // Remove first to prevent duplicates
-        this.fullscreenVideo.addEventListener('ended', this.fullscreenVideoEndedHandler);
+        if (this.fullscreenVideo) {
+            this.fullscreenVideo.removeEventListener('ended', this.fullscreenVideoEndedHandler);
+            this.fullscreenVideo.addEventListener('ended', this.fullscreenVideoEndedHandler);
+        }
         
         // Lazy-init GPT on first fullscreen use, then show the left margin ad
         if (!this.gptInitialized) {
