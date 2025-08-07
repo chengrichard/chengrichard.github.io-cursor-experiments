@@ -10,6 +10,8 @@ class VerticalVideoPlayer {
         this.lastPlayedVideo = null; // Keep track of the last video that was played.
         this.isManuallyScrolling = false; // Flag to prevent race conditions during scroll.
         this.realItemCount = 0; // The number of actual slides (videos + ads), excluding clones.
+        this.intersectionObserver = null; // For lazy-loading carousel videos
+        this.gptInitialized = false; // Avoid initializing GPT until first fullscreen
         
         // Define the ended handler once and bind it for consistent reference.
         this.videoEndedHandler = this.handleVideoEndedInCarousel.bind(this);
@@ -24,7 +26,8 @@ class VerticalVideoPlayer {
         
         // IMA SDK will be initialized when needed for video ads
         this.leftMarginAdSlot = null;
-        this.initializeLeftMarginAd();
+        // Defer GPT init until user enters fullscreen to avoid unused script work
+        // GPT will be initialized on first fullscreen open
         
         // Start autoplay after videos are loaded
         // Don't start autoplay here - it will be started after renderCarousel()
@@ -407,16 +410,24 @@ class VerticalVideoPlayer {
         this.nextBtn = document.getElementById('nextBtn');
         this.closeBtn = document.getElementById('closeBtn');
 
-        
-        // Create the container for the left margin ad and append it to the modal
-        this.leftMarginAdContainer = document.createElement('div');
-        this.leftMarginAdContainer.className = 'full-screen-left-margin-ad';
-        this.leftMarginAdContainer.id = 'banner-ad'; // This ID is targeted by the GPT tag
-        this.fullscreenModal.appendChild(this.leftMarginAdContainer);
+        // Ensure there is exactly one left-margin ad container
+        const existingAdContainer = this.fullscreenModal.querySelector('#banner-ad');
+        if (existingAdContainer) {
+            this.leftMarginAdContainer = existingAdContainer;
+        } else {
+            this.leftMarginAdContainer = document.createElement('div');
+            this.leftMarginAdContainer.className = 'full-screen-left-margin-ad';
+            this.leftMarginAdContainer.id = 'banner-ad';
+            this.fullscreenModal.appendChild(this.leftMarginAdContainer);
+        }
     }
 
     async initializeLeftMarginAd() {
         try {
+            if (this.leftMarginAdSlot) {
+                // Already initialized
+                return;
+            }
             await this.ensureGptScriptLoaded();
             console.log('GPT script ready, defining the left margin ad slot.');
 
@@ -443,12 +454,16 @@ class VerticalVideoPlayer {
     ensureGptScriptLoaded() {
         return new Promise((resolve, reject) => {
             if (window.googletag && window.googletag.apiReady) {
+                this.gptInitialized = true;
                 return resolve();
             }
             if (document.querySelector('script[src*="gpt.js"]')) {
                 // If script is already loading, just wait for the command queue
                 window.googletag = window.googletag || { cmd: [] };
-                window.googletag.cmd.push(resolve);
+                window.googletag.cmd.push(() => {
+                    this.gptInitialized = true;
+                    resolve();
+                });
                 return;
             }
             const script = document.createElement('script');
@@ -457,7 +472,10 @@ class VerticalVideoPlayer {
             script.crossOrigin = 'anonymous';
             script.onload = () => {
                 window.googletag = window.googletag || { cmd: [] };
-                window.googletag.cmd.push(resolve);
+                window.googletag.cmd.push(() => {
+                    this.gptInitialized = true;
+                    resolve();
+                });
             };
             script.onerror = reject;
             document.head.appendChild(script);
@@ -482,7 +500,7 @@ class VerticalVideoPlayer {
 
         window.googletag.cmd.push(() => {
             // Listen for when the ad slot is finished rendering
-            googletag.pubads().addEventListener('slotRenderEnded', (event) => {
+            const onRenderEnded = (event) => {
                 // Check if the event is for our specific ad slot
                 if (event.slot === this.leftMarginAdSlot) {
                     if (!event.isEmpty) {
@@ -491,8 +509,11 @@ class VerticalVideoPlayer {
                     } else {
                         console.log('GPT ad slot was empty, container remains hidden.');
                     }
+                    // Remove listener after handling once to avoid leaks
+                    googletag.pubads().removeEventListener('slotRenderEnded', onRenderEnded);
                 }
-            });
+            };
+            googletag.pubads().addEventListener('slotRenderEnded', onRenderEnded);
 
             // Now, refresh the ad slot to trigger the request
             googletag.pubads().refresh([this.leftMarginAdSlot]);
@@ -531,8 +552,8 @@ class VerticalVideoPlayer {
         document.addEventListener('keydown', this.handleKeyboard.bind(this));
 
         // Touch events for swipe
-        this.fullscreenModal.addEventListener('touchstart', this.handleTouchStart.bind(this));
-        this.fullscreenModal.addEventListener('touchend', this.handleTouchEnd.bind(this));
+        this.fullscreenModal.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true });
+        this.fullscreenModal.addEventListener('touchend', this.handleTouchEnd.bind(this), { passive: true });
 
         // Carousel scrolling is now handled by the simplified navigation logic.
         // The handleCarouselScroll function is no longer needed.
@@ -802,6 +823,9 @@ class VerticalVideoPlayer {
         this.realItemCount = this.carousel.children.length; // Set the correct count of real items.
         console.log('Carousel rendered with', this.realItemCount, 'real items.');
         
+        // Setup IntersectionObserver for lazy video playback readiness
+        this.setupIntersectionObserver();
+
         this.updateCarouselNav();
         
         if (this.realItemCount > 0) {
@@ -813,6 +837,34 @@ class VerticalVideoPlayer {
                 this.startAutoplay();
             }, 200);
         }
+    }
+
+    setupIntersectionObserver() {
+        if (this.intersectionObserver) {
+            this.intersectionObserver.disconnect();
+        }
+        if (!('IntersectionObserver' in window)) {
+            return; // Browser doesn't support it; rely on default 'metadata' preload
+        }
+        const options = { root: this.carousel, rootMargin: '200px', threshold: 0.01 };
+        this.intersectionObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const video = entry.target.querySelector('video');
+                    if (video) {
+                        // Switch to auto metadata loading when near viewport
+                        video.preload = 'metadata';
+                    }
+                    this.intersectionObserver.unobserve(entry.target);
+                }
+            });
+        }, options);
+
+        this.carousel.querySelectorAll('.video-item').forEach(item => {
+            if (!item.dataset.type) {
+                this.intersectionObserver.observe(item);
+            }
+        });
     }
 
     updateCarouselNav() {
@@ -1230,6 +1282,7 @@ class VerticalVideoPlayer {
     scrollCarousel(direction) {
         // Pause autoplay when user manually navigates
         this.pauseAutoplay();
+        this.isManuallyScrolling = true;
         
         if (direction === 'next') {
             this.currentIndex = (this.currentIndex + 1) % this.realItemCount;
@@ -1240,6 +1293,8 @@ class VerticalVideoPlayer {
         // After calculating the correct index, play the corresponding video/ad.
         // This will also handle scrolling the item into view.
         this.playCurrentVideo();
+        // Allow auto actions again shortly after programmatic scroll completes
+        setTimeout(() => { this.isManuallyScrolling = false; }, 400);
     }
 
     playCurrentVideo() {
@@ -1501,7 +1556,10 @@ class VerticalVideoPlayer {
         }
         
         // Ensure video element is visible
-        this.fullscreenVideo.style.display = 'block';
+        if (this.fullscreenVideo) {
+            this.fullscreenVideo.style.display = 'block';
+            this.fullscreenVideo.setAttribute('playsinline', '');
+        }
         
         // Use the video-index to get the correct video from the playlist.
         const videoIndex = parseInt(currentItem.dataset.videoIndex);
@@ -1560,11 +1618,17 @@ class VerticalVideoPlayer {
         this.playVideo(this.fullscreenVideo);
         
         // Add ended event listener for auto-progression
-        this.fullscreenVideo.removeEventListener('ended', this.fullscreenVideoEndedHandler); // Remove first to prevent duplicates
-        this.fullscreenVideo.addEventListener('ended', this.fullscreenVideoEndedHandler);
+        if (this.fullscreenVideo) {
+            this.fullscreenVideo.removeEventListener('ended', this.fullscreenVideoEndedHandler);
+            this.fullscreenVideo.addEventListener('ended', this.fullscreenVideoEndedHandler);
+        }
         
-        // Show the left margin ad when entering fullscreen
-        this.showLeftMarginAd();
+        // Lazy-init GPT on first fullscreen use, then show the left margin ad
+        if (!this.gptInitialized) {
+            this.initializeLeftMarginAd().then(() => this.showLeftMarginAd());
+        } else {
+            this.showLeftMarginAd();
+        }
 
         console.log('Fullscreen opened successfully');
     }

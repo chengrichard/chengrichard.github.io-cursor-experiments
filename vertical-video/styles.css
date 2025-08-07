@@ -9,6 +9,7 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     color: #333;
+    overscroll-behavior-y: contain;
 }
 
 .container {
@@ -42,6 +43,7 @@ header h1 {
     scrollbar-width: none; /* Firefox */
     -ms-overflow-style: none; /* IE and Edge */
     will-change: scroll-position;
+    contain: content; /* Reduce paint scope */
 }
 
 .video-carousel::-webkit-scrollbar {
@@ -62,6 +64,7 @@ header h1 {
     min-width: 280px;
     /* Promote to a new compositor layer for smoother animations */
     will-change: transform, box-shadow;
+    content-visibility: auto; /* Skip off-screen rendering */
 }
 
 .video-item:hover {
@@ -423,6 +426,7 @@ header h1 {
     display: none;
     z-index: 1000;
     backdrop-filter: blur(10px);
+    contain: layout style paint; /* isolate modal for performance */
 }
 
 /* New wrapper to handle the flex centering of the main content */
