@@ -400,6 +400,26 @@ class VerticalVideoPlayer {
         }
     }
 
+    stopMediaBeforeSwitch() {
+        // Stop any IMA ad that may be playing
+        this.destroyIMAAd();
+
+        // Pause all videos on the page
+        document.querySelectorAll('video').forEach(vid => {
+            try { vid.pause(); } catch (_) {}
+        });
+
+        // Explicitly stop and unload the fullscreen video source to prevent lingering audio
+        if (this.isFullscreen && this.fullscreenVideo) {
+            try {
+                this.fullscreenVideo.pause();
+                // Unset src and load to abort any network/decoder activity
+                this.fullscreenVideo.removeAttribute('src');
+                this.fullscreenVideo.load();
+            } catch (_) {}
+        }
+    }
+
     initializeElements() {
         this.carousel = document.getElementById('videoCarousel');
         this.carouselPrev = document.getElementById('carouselPrev');
@@ -1243,6 +1263,8 @@ class VerticalVideoPlayer {
         
         // In fullscreen, check for ads first before advancing the index.
         if (this.isFullscreen) {
+            // Stop any current media right away to avoid audio overlap
+            this.stopMediaBeforeSwitch();
             this.fullscreenVideosWatched++;
             console.log(`Manually navigated to next video. Counter: ${this.fullscreenVideosWatched}`);
             
@@ -1267,6 +1289,9 @@ class VerticalVideoPlayer {
     previousVideo() {
         if (this.realItemCount === 0) return;
         
+        // Stop any current media to avoid audio bleeding into previous item
+        this.stopMediaBeforeSwitch();
+
         // Use modulo for clean, infinite looping in reverse.
         this.currentIndex = (this.currentIndex - 1 + this.realItemCount) % this.realItemCount;
         
@@ -1636,7 +1661,8 @@ class VerticalVideoPlayer {
     closeFullscreen() {
         if (!this.isFullscreen) return;
 
-        this.pauseAllVideos();
+        // Stop any media (including ads) to prevent lingering audio
+        this.stopMediaBeforeSwitch();
 
         // Destroy any active IMA ad before closing
         this.destroyIMAAd();
@@ -1676,6 +1702,9 @@ class VerticalVideoPlayer {
     }
 
     loadVideoInFullscreen() {
+        // Ensure any existing media (including ads) is fully stopped before switching
+        this.stopMediaBeforeSwitch();
+
         // Find the current item in the carousel to determine if it's an ad or video.
         const currentItem = this.carousel.querySelector(`[data-index="${this.currentIndex}"]`);
         
@@ -1765,6 +1794,8 @@ class VerticalVideoPlayer {
     }
     
     advanceToNextVideo() {
+        // Stop any current media to avoid audio bleeding into next item
+        this.stopMediaBeforeSwitch();
         const totalItems = this.carousel.children.length;
         let nextIndex = (this.currentIndex + 1) % totalItems;
 
